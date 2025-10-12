@@ -1,0 +1,16 @@
+name: webstudio2
+build:
+  image: node:20
+  install:
+    - npm install -g corepack@0.24.1
+    - corepack enable
+    - pnpm i --frozen-lockfile
+  build: pnpm run build
+run:
+  start: pnpm dev
+ports:
+  - internal: 5173
+    external: 80
+env:
+  DEV_LOGIN: "true"
+  AUTH_SECRET: "some-random-secret"
