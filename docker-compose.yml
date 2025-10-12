@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  webstudio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    environment:
+      - DEV_LOGIN=true
+      - AUTH_SECRET=your-random-secret-here           
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    command: pnpm dev
+
+volumes:
+  node_modules:
