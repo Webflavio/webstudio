@@ -1,17 +1,19 @@
-FROM node:20-alpine
+FROM node:20
 
-# تثبيت pnpm
-RUN npm install -g pnpm
-
-WORKDIR /workspace
+WORKDIR /app
 
 # نسخ ملفات المشروع
-COPY package.json pnpm-lock.yaml ./
 COPY . .
 
-# تثبيت المكتبات
-RUN pnpm install
+# تثبيت pnpm
+RUN npm install -g corepack && corepack enable
+RUN pnpm install --frozen-lockfile
 
-EXPOSE 3000 5173
+# متغيرات البيئة
+ENV DEV_LOGIN=true
+ENV AUTH_SECRET=some-random-secret
+ENV HOST=0.0.0.0
+ENV PORT=5173
 
+# أمر التشغيل
 CMD ["pnpm", "dev"]
