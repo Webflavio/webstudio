@@ -1,19 +1,17 @@
 FROM node:20-alpine
 
-# Install pnpm
+# تثبيت pnpm
 RUN npm install -g pnpm
 
-# Set working directory
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy all files
+# نسخ ملفات المشروع
+COPY package.json pnpm-lock.yaml ./
 COPY . .
 
-# Install dependencies
+# تثبيت المكتبات
 RUN pnpm install
 
-# Expose Vite port
-EXPOSE 5173
+EXPOSE 3000 5173
 
-# Run Vite on all network interfaces
-CMD ["pnpm", "dev", "--host", "0.0.0.0"]
+CMD ["pnpm", "dev"]
