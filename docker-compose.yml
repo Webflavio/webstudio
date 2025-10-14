@@ -1,20 +1,38 @@
-version: '3.8'
+version: "3.8"
 
 services:
   webstudio:
     build:
       context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3001:3000"
-      - "5173:5173"
+      dockerfile: ./Dockerfile
+    container_name: webstudio-app
+    restart: always
     environment:
-      - DEV_LOGIN=true
-      - AUTH_SECRET=your-random-secret-here           
+      NODE_ENV: production
+      BUILDER_DOMAIN: test.domain.com
+      DATABASE_URL: postgres://postgres:pass@db:5432/webstudio
+    depends_on:
+      - db
+    ports:
+      - "5173:5173"
+    networks:
+      - webstudio_network
+
+  db:
+    image: ghcr.io/supabase/postgres:15.1.1.55
+    container_name: webstudio-db
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: webstudio
     volumes:
-      - .:/workspace
-      - node_modules:/workspace/node_modules
-    command: pnpm dev
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - webstudio_network
+
+networks:
+  webstudio_network:
+    driver: bridge
 
 volumes:
-  node_modules:
+  postgres-data:
