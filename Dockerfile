@@ -1,18 +1,22 @@
-# --- المرحلة 1: بناء المشروع ---
-FROM node:20-bookworm AS build
+FROM mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm
 
-WORKDIR /app
-COPY . .
-RUN corepack enable && pnpm install --frozen-lockfile
-RUN pnpm --filter="@webstudio-is/builder" build
+ENV PATH=/usr/local/bin:${PATH}
+# Install latest pnpm
+# RUN npm install -g pnpm@9.0.2
 
-# --- المرحلة 2: تشغيل التطبيق ---
-FROM node:20-bookworm
+# [Optional] Uncomment this section to install additional OS packages.
+# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+#     && apt-get -y install --no-install-recommends <your-package-list-here>
 
-WORKDIR /app
-COPY --from=build /app /app
+# [Optional] Uncomment if you want to install an additional version of node using nvm
+# ARG EXTRA_NODE_VERSION=10
+# RUN su node -c "source /usr/local/share/nvm/nvm.sh && nvm install ${EXTRA_NODE_VERSION}"
 
-ENV NODE_ENV=production
-EXPOSE 5173
+# [Optional] Uncomment if you want to install more global node modules
+# RUN su node -c "npm install -g <your-package-list-here>"
 
-CMD ["pnpm", "--filter=@webstudio-is/builder", "start"]
+COPY .devcontainer/library-scripts/*.sh /tmp/library-scripts/
+
+ENV DOCKER_BUILDKIT=1
+RUN apt-get update
+RUN /bin/bash /tmp/library-scripts/docker-in-docker-debian.sh
