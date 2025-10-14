@@ -1,19 +1,18 @@
-FROM node:20
+# --- المرحلة 1: بناء المشروع ---
+FROM node:20-bookworm AS build
 
 WORKDIR /app
-
-# نسخ ملفات المشروع
 COPY . .
+RUN corepack enable && pnpm install --frozen-lockfile
+RUN pnpm --filter="@webstudio-is/builder" build
 
-# تثبيت pnpm
-RUN npm install -g corepack && corepack enable
-RUN pnpm install --frozen-lockfile
+# --- المرحلة 2: تشغيل التطبيق ---
+FROM node:20-bookworm
 
-# متغيرات البيئة
-ENV DEV_LOGIN=true
-ENV AUTH_SECRET=some-random-secret
-ENV HOST=0.0.0.0
-ENV PORT=5173
+WORKDIR /app
+COPY --from=build /app /app
 
-# أمر التشغيل
-CMD ["pnpm", "dev"]
+ENV NODE_ENV=production
+EXPOSE 5173
+
+CMD ["pnpm", "--filter=@webstudio-is/builder", "start"]
