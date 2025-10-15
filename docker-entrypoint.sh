@@ -1,32 +1,32 @@
-#!/bin/sh
+#!/bin/bash
 set -e  # توقف عند أي خطأ
 
 echo "Starting Webstudio development environment..."
 
-# إنشاء مجلدات pnpm و cache مع صلاحيات node
-mkdir -p /home/node/.pnpm-store /home/node/.cache
-chown -R node:node /home/node/.pnpm-store /home/node/.cache
+# تنظيف npm و corepack caches
+npm cache clean -f
+rm -rf /tmp/corepack-cache
+rm -rf /usr/local/lib/node_modules/corepack || true
 
-# حذف جميع node_modules إذا وجدت
-find /app -type d -name node_modules -exec sh -c 'rm -rf "$1"' _ {} \;
+# إعادة تثبيت corepack وتفعيله
+npm install -g corepack@latest --force
+corepack enable
 
-# إنشاء node_modules لكل package
-find /app -type d -exec sh -c 'mkdir -p "$1/node_modules"' _ {} \;
+echo "Corepack version: $(corepack --version)"
 
-# ضبط صلاحيات مجلد التطبيق
-chown -R node:node /app
+# تجهيز pnpm
+corepack prepare pnpm@9.14.4 --activate
 
-# إعداد pnpm store
-su node -c 'pnpm config set store-dir /home/node/.pnpm-store'
+# الانتقال إلى مجلد المشروع
+cd /app
 
-# تثبيت الحزم
-su node -c 'pnpm install'
+# ضبط pnpm store directory
+pnpm config set store-dir $HOME/.pnpm-store
 
-# بناء المشروع
-su node -c 'pnpm build'
+# تثبيت الحزم، build، run migrations
+pnpm install
+pnpm build
+pnpm migrations migrate
 
-# تشغيل migrations
-su node -c 'pnpm migrations migrate'
-
-# تشغيل التطبيق
-su node -c 'pnpm dev --host 0.0.0.0'
+# تشغيل التطبيق مباشرة
+pnpm dev --host 0.0.0.0
