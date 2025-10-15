@@ -18,6 +18,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.webstudio-app.loadbalancer.server.port=5173"
 
   db:
     image: ghcr.io/supabase/postgres:15.1.1.55
@@ -32,7 +35,7 @@ services:
       - webstudio-network
     ports:
       - ${PGPORT:-5432}:5432
-      - 3001:3000
+      - 3000:3000
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d webstudio"]
       interval: 10s
