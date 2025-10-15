@@ -12,14 +12,19 @@ COPY package.json pnpm-lock.yaml ./
 # نسخ مجلد patches إذا كان موجودًا (حل لمشكلة ENOENT مع @stitches/react)
 COPY patches ./patches
 
-# تثبيت التبعيات للـ production فقط (أسرع وأصغر)
-RUN pnpm install --frozen-lockfile --prod
+# تثبيت كل التبعيات (بما فيها devDependencies) لبناء التطبيق
+RUN pnpm install --frozen-lockfile
 
 # نسخ باقي الكود
 COPY . .
 
-# بناء التطبيق
+# بناء التطبيق (يحتاج devDependencies مثل esbuild)
 RUN pnpm build
+
+# حذف node_modules وإعادة تثبيت التبعيات الإنتاجية فقط (للإنتاج)
+RUN rm -rf node_modules pnpm-lock.yaml
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 # تعريض المنفذ الرئيسي (بناءً على devcontainer.json)
 EXPOSE 5173
