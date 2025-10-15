@@ -1,15 +1,23 @@
 version: "3.9"
 
-# الشبكات
+
 networks:
   dokploy-network:
     external: true
   internal:
     driver: bridge
 
-# الخدمات
+
+volumes:
+  node-modules:
+  pnpm-store:
+  node-cache:
+  app-cache:
+  app-build:
+
+
 services:
-  # تطبيق Webstudio
+
   app:
     build:
       context: .
@@ -25,32 +33,14 @@ services:
       - app-cache:/app/.cache
       - app-build:/app/build
     environment:
-      # قاعدة البيانات الخارجية (داخل الشبكة الداخلية)
-      DATABASE_URL: ${DATABASE_URL}
       NODE_ENV: development
       PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL}
     networks:
       - dokploy-network
       - internal
-      
- networks:
-  dokploy-network:
-    external: true
-    labels:
-      # Traefik HTTPS
-      - "traefik.enable=true"
-      - "traefik.http.routers.webstudio-app.rule=Host(`${APP_DOMAIN:-webstudio.localhost}`)"
-      - "traefik.http.routers.webstudio-app.entrypoints=websecure"
-      - "traefik.http.routers.webstudio-app.tls.certresolver=letsencrypt"
-      - "traefik.http.services.webstudio-app.loadbalancer.server.port=3002"
-      # إعادة توجيه HTTP إلى HTTPS
-      - "traefik.http.routers.webstudio-app-http.rule=Host(`${APP_DOMAIN:-webstudio.localhost}`)"
-      - "traefik.http.routers.webstudio-app-http.entrypoints=web"
-      - "traefik.http.routers.webstudio-app-http.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
     command: ["sh", "docker-entrypoint.sh"]
 
-  # PostgREST API (اختياري)
   rest:
     image: postgrest/postgrest:v12.2.0
     container_name: webstudio-rest
@@ -66,23 +56,3 @@ services:
     networks:
       - dokploy-network
       - internal
- networks:
-  dokploy-network:
-    external: true
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.webstudio-rest.rule=Host(`${REST_DOMAIN:-rest.webstudio.localhost}`)"
-      - "traefik.http.routers.webstudio-rest.entrypoints=websecure"
-      - "traefik.http.routers.webstudio-rest.tls.certresolver=letsencrypt"
-      - "traefik.http.services.webstudio-rest.loadbalancer.server.port=3002"
-
-# تعريف الفوليوم
-volumes:
-  node-modules:
-  pnpm-store:
-  node-cache:
-  app-cache:
-  app-build:
-
-
-
