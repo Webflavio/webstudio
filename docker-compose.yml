@@ -36,6 +36,8 @@ services:
       NODE_ENV: development
       PORT: ${PORT:-3000}
       DATABASE_URL: ${DATABASE_URL}
+   env_file:
+        - .env
     networks:
       - dokploy-network
       - internal
@@ -53,6 +55,9 @@ services:
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+   env_file:
+        - .env
     networks:
       - dokploy-network
       - internal
+
