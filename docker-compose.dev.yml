@@ -1,26 +1,51 @@
-version: "3.8"
+version: "3.9"
+
+networks:
+  dokploy-network:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  node-modules:
+  pnpm-store:
+  node-cache:
+  app-cache:
+  app-build:
+  postgres-data:
 
 services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    restart: always
-    ports:
-      - 5173
+      dockerfile: Dockerfile
+    container_name: webstudio-app
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./:/app:cached
+      - node-modules:/app/node_modules
+      - pnpm-store:/home/node/.pnpm-store:rw
+      - node-cache:/home/node/.cache:rw
+      - app-cache:/app/.cache
+      - app-build:/app/build
     environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/webstudio
-    depends_on:
-      - db
-      - rest
+      NODE_ENV: development
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL}
+    env_file:
+      - apps/builder/.env
     networks:
       - dokploy-network
-    command: sh -c "pnpm migrations migrate && pnpm start"  # Adjust to your start command; for dev: pnpm run dev
+      - internal
+    command: ["sh", "docker-entrypoint.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: ghcr.io/supabase/postgres:15.1.1.55
-    command: ["postgres", "-c", "log_statement=all", "-c", "listen_addresses=*"]
+    container_name: webstudio-db
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -28,40 +53,34 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: webstudio
       POSTGRES_USER: postgres
+    networks:
+      - internal
     ports:
-      - 5432
+      - ${PGPORT:-5432}:5432
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d webstudio"]
       interval: 10s
       timeout: 5s
       retries: 25
-    networks:
-      - dokploy-network
+      start_period: 5s
 
   rest:
     image: postgrest/postgrest:v12.2.0
+    container_name: webstudio-rest
     restart: unless-stopped
     environment:
-      PGRST_DB_URI: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/webstudio
+      PGRST_DB_URI: ${DATABASE_URL}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_ANON_ROLE: ${PGRST_DB_ANON_ROLE:-anon}
+      PGRST_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
-      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
-    command: "postgrest"
-    ports:
-      - 3002
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    env_file:
+      - apps/builder/.env
+    networks:
+      - dokploy-network
+      - internal
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - dokploy-network
-
-
-volumes:
-  postgres-data:
-
-networks:
-  dokploy-network:
-    external: true
