@@ -1,0 +1,25 @@
+FROM node:20-bookworm-slim
+
+# تعيين مجلد العمل
+WORKDIR /app
+
+# تثبيت pnpm عالميًا (الإصدار المستخدم في postinstall.sh)
+RUN npm install -g pnpm@9.14.4
+
+# نسخ ملفات التبعيات للاستفادة من الـ cache في Docker
+COPY package.json pnpm-lock.yaml ./
+
+# تثبيت التبعيات للـ production فقط (أسرع وأصغر)
+RUN pnpm install --frozen-lockfile --prod
+
+# نسخ باقي الكود
+COPY . .
+
+# بناء التطبيق
+RUN pnpm build
+
+# تعريض المنفذ الرئيسي (بناءً على devcontainer.json)
+EXPOSE 5173
+
+# أمر التشغيل: تشغيل migrations ثم الخادم (غيّر 'start' إلى 'dev' إذا كان للتطوير)
+CMD ["sh", "-c", "pnpm migrations migrate && pnpm start"]
