@@ -9,25 +9,6 @@ networks:
 
 # الخدمات
 services:
-  # قاعدة البيانات PostgreSQL
-  db:
-    image: ghcr.io/supabase/postgres:15.1.1.55
-    container_name: webstudio-db
-    restart: unless-stopped
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
-      POSTGRES_DB: ${POSTGRES_DB:-webstudio}
-    networks:
-      - internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-webstudio}"]
-      interval: 10s
-      timeout: 5s
-      retries: 25
-
   # تطبيق Webstudio
   app:
     build:
@@ -44,12 +25,10 @@ services:
       - app-cache:/app/.cache
       - app-build:/app/build
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pass}@db:5432/${POSTGRES_DB:-webstudio}
+      # قاعدة البيانات الخارجية (داخل الشبكة الداخلية)
+      DATABASE_URL: postgresql://webstudio:${POSTGRES_PASSWORD:-pass}@my-communication-webdb-xa40fq:5432/postgres
       NODE_ENV: development
       PORT: ${PORT:-3000}
-    depends_on:
-      db:
-        condition: service_healthy   # ← يرجع الاعتماد السليم على قاعدة البيانات
     networks:
       - dokploy-network
       - internal
@@ -73,16 +52,13 @@ services:
     container_name: webstudio-rest
     restart: unless-stopped
     environment:
-      PGRST_DB_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pass}@db:5432/${POSTGRES_DB:-webstudio}
+      PGRST_DB_URI: postgresql://webstudio:${POSTGRES_PASSWORD:-pass}@my-communication-webdb-xa40fq:5432/postgres
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
       PGRST_DB_ANON_ROLE: ${PGRST_DB_ANON_ROLE:-anon}
       PGRST_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - dokploy-network
       - internal
@@ -95,7 +71,6 @@ services:
 
 # تعريف الفوليوم
 volumes:
-  postgres-data:
   node-modules:
   pnpm-store:
   node-cache:
