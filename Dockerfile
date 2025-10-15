@@ -1,22 +1,56 @@
-FROM mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm
+# Build stage
+FROM node:20-alpine AS builder
 
-ENV PATH=/usr/local/bin:${PATH}
-# Install latest pnpm
-# RUN npm install -g pnpm@9.0.2
+# Install pnpm
+RUN npm install -g pnpm@9.14.4
 
-# [Optional] Uncomment this section to install additional OS packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#     && apt-get -y install --no-install-recommends <your-package-list-here>
+# Set working directory
+WORKDIR /app
 
-# [Optional] Uncomment if you want to install an additional version of node using nvm
-# ARG EXTRA_NODE_VERSION=10
-# RUN su node -c "source /usr/local/share/nvm/nvm.sh && nvm install ${EXTRA_NODE_VERSION}"
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/builder/package.json ./apps/builder/
+COPY packages/*/package.json ./packages/*/
 
-# [Optional] Uncomment if you want to install more global node modules
-# RUN su node -c "npm install -g <your-package-list-here>"
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
-COPY .devcontainer/library-scripts/*.sh /tmp/library-scripts/
+# Copy source code
+COPY . .
 
-ENV DOCKER_BUILDKIT=1
-RUN apt-get update
-RUN /bin/bash /tmp/library-scripts/docker-in-docker-debian.sh
+# Build the application
+RUN pnpm build
+
+# Production stage
+FROM node:20-alpine AS production
+
+# Install pnpm
+RUN npm install -g pnpm@9.14.4
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application
+COPY --from=builder /app/apps/builder/build ./build
+COPY --from=builder /app/apps/builder/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/apps/builder/package.json ./apps/builder/package.json
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S webstudio -u 1001
+
+# Change ownership
+RUN chown -R webstudio:nodejs /app
+USER webstudio
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+
+# Start the application
+CMD ["pnpm", "--filter", "@webstudio-is/builder", "start"]
