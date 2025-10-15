@@ -34,7 +34,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dokploy
+      dockerfile: Dockerfile
     
     container_name: webstudio-app
     restart: unless-stopped
@@ -77,7 +77,7 @@ services:
       - "traefik.http.routers.webstudio-app.rule=Host(`${APP_DOMAIN:-webstudio.localhost}`)"
       - "traefik.http.routers.webstudio-app.entrypoints=websecure"
       - "traefik.http.routers.webstudio-app.tls.certresolver=letsencrypt"
-      - "traefik.http.services.webstudio-app.loadbalancer.server.port=3000"
+      - "traefik.http.services.webstudio-app.loadbalancer.server.port=3002"
       # إعادة توجيه HTTP إلى HTTPS
       - "traefik.http.routers.webstudio-app-http.rule=Host(`${APP_DOMAIN:-webstudio.localhost}`)"
       - "traefik.http.routers.webstudio-app-http.entrypoints=web"
@@ -124,7 +124,7 @@ services:
       - "traefik.http.routers.webstudio-rest.rule=Host(`${REST_DOMAIN:-rest.webstudio.localhost}`)"
       - "traefik.http.routers.webstudio-rest.entrypoints=websecure"
       - "traefik.http.routers.webstudio-rest.tls.certresolver=letsencrypt"
-      - "traefik.http.services.webstudio-rest.loadbalancer.server.port=3000"
+      - "traefik.http.services.webstudio-rest.loadbalancer.server.port=3002"
 
 volumes:
   postgres-data:
@@ -139,3 +139,4 @@ volumes:
     driver: local
   app-build:
     driver: local
+
