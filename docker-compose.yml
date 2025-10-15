@@ -1,78 +1,60 @@
-# شبكة Dokploy - يجب إضافتها للتكامل مع Traefik
+version: "3.9"
+
+# الشبكات
 networks:
   dokploy-network:
     external: true
   internal:
     driver: bridge
 
+# الخدمات
 services:
   # قاعدة البيانات PostgreSQL
   db:
     image: ghcr.io/supabase/postgres:15.1.1.55
     container_name: webstudio-db
     restart: unless-stopped
-    
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    
     environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
       POSTGRES_DB: ${POSTGRES_DB:-webstudio}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-    
     networks:
       - internal
-    
-    # فحص صحة قاعدة البيانات
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d webstudio"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-webstudio}"]
       interval: 10s
       timeout: 5s
       retries: 25
 
-  # تطبيق Webstudio الرئيسي
+  # تطبيق Webstudio
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    
     container_name: webstudio-app
     restart: unless-stopped
-    user: root  # نبدأ كـ root لإصلاح الصلاحيات ثم نتحول لـ node
-    
+    user: root
     volumes:
-      # ربط مجلد المشروع للتطوير
       - ./:/app:cached
-      # الحفاظ على node_modules
       - node-modules:/app/node_modules
-      # استخدام volume منفصل لـ pnpm store مع صلاحيات صحيحة
       - pnpm-store:/home/node/.pnpm-store:rw
       - node-cache:/home/node/.cache:rw
       - app-cache:/app/.cache
       - app-build:/app/build
-    
     environment:
-      # إعدادات قاعدة البيانات
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pass}@db:5432/${POSTGRES_DB:-webstudio}
-      
-      # إعدادات Node.js
       NODE_ENV: development
-      
-      # إعدادات المشروع
       PORT: ${PORT:-3000}
-      
-      # يمكنك إضافة متغيرات البيئة الأخرى هنا
-      
     depends_on:
       db:
         condition: service_healthy
-    
     networks:
       - dokploy-network
       - internal
-    
-    # تعريضات Traefik للوصول من الخارج
     labels:
+      # Traefik HTTPS
       - "traefik.enable=true"
       - "traefik.http.routers.webstudio-app.rule=Host(`${APP_DOMAIN:-webstudio.localhost}`)"
       - "traefik.http.routers.webstudio-app.entrypoints=websecure"
@@ -83,12 +65,14 @@ services:
       - "traefik.http.routers.webstudio-app-http.entrypoints=web"
       - "traefik.http.routers.webstudio-app-http.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-    
     command: >
       sh -c "
         echo 'Starting development environment...' &&
-        mkdir -p /home/node/.pnpm-store /home/node/.cache /app/node_modules &&
-        chown -R node:node /home/node/.pnpm-store /home/node/.cache /app/node_modules &&
+        mkdir -p /home/node/.pnpm-store /home/node/.cache &&
+        chown -R node:node /home/node/.pnpm-store /home/node/.cache &&
+        find /app -type d -name node_modules -exec rm -rf {} + || true &&
+        find /app -type d -exec mkdir -p {}/node_modules \; || true &&
+        chown -R node:node /app &&
         su node -c 'pnpm config set store-dir /home/node/.pnpm-store' &&
         su node -c 'pnpm install' &&
         su node -c 'pnpm build' &&
@@ -101,7 +85,6 @@ services:
     image: postgrest/postgrest:v12.2.0
     container_name: webstudio-rest
     restart: unless-stopped
-    
     environment:
       PGRST_DB_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pass}@db:5432/${POSTGRES_DB:-webstudio}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
@@ -110,15 +93,12 @@ services:
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
-    
     depends_on:
       db:
         condition: service_healthy
-    
     networks:
       - dokploy-network
       - internal
-    
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webstudio-rest.rule=Host(`${REST_DOMAIN:-rest.webstudio.localhost}`)"
@@ -126,18 +106,11 @@ services:
       - "traefik.http.routers.webstudio-rest.tls.certresolver=letsencrypt"
       - "traefik.http.services.webstudio-rest.loadbalancer.server.port=3002"
 
+# تعريف الفوليوم
 volumes:
   postgres-data:
-    driver: local
   node-modules:
-    driver: local
   pnpm-store:
-    driver: local
   node-cache:
-    driver: local
   app-cache:
-    driver: local
   app-build:
-    driver: local
-
-
