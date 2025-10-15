@@ -17,9 +17,9 @@ ENV PATH=/usr/local/bin:${PATH}
 COPY .devcontainer/postinstall.sh /workspaces/webstudio/.devcontainer/postinstall.sh
 RUN chmod +x /workspaces/webstudio/.devcontainer/postinstall.sh
 
-# نسخ library-scripts إذا كانت موجودة (من devcontainer الأصلي)
-COPY library-scripts/*.sh /tmp/library-scripts/ || true
+# نسخ library-scripts إذا كانت موجودة (من devcontainer الأصلي) - مشروط لتجنب الخطأ
+RUN if [ -d "library-scripts" ]; then cp library-scripts/*.sh /tmp/library-scripts/; fi || true
 
 ENV DOCKER_BUILDKIT=1
 RUN apt-get update
-RUN /bin/bash /tmp/library-scripts/docker-in-docker-debian.sh || true  # لـ Docker-in-Docker
+RUN if [ -f "/tmp/library-scripts/docker-in-docker-debian.sh" ]; then /bin/bash /tmp/library-scripts/docker-in-docker-debian.sh; fi || true  # لـ Docker-in-Docker إذا وجد
