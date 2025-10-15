@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: webstudio
       POSTGRES_USER: webstudio
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-strong-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-webstudio123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -24,10 +24,10 @@ services:
     image: postgrest/postgrest:v12.0.2
     restart: always
     environment:
-      PGRST_DB_URI: postgres://webstudio:${POSTGRES_PASSWORD:-your-strong-password}@postgres:5432/webstudio
+      PGRST_DB_URI: postgres://webstudio:${POSTGRES_PASSWORD:-webstudio123}@postgres:5432/webstudio
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: webstudio
-      PGRST_JWT_SECRET: ${PGRST_JWT_SECRET:-your-jwt-secret-key}
+      PGRST_JWT_SECRET: ${PGRST_JWT_SECRET:-your-super-secret-jwt-key-with-at-least-32-characters-long}
       PGRST_JWT_AUD: webstudio
     ports:
       - "3002:3000"
@@ -45,20 +45,16 @@ services:
     restart: always
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://webstudio:${POSTGRES_PASSWORD:-your-strong-password}@postgres:5432/webstudio?pgbouncer=true
-      DIRECT_URL: postgres://webstudio:${POSTGRES_PASSWORD:-your-strong-password}@postgres:5432/webstudio
+      DATABASE_URL: postgres://webstudio:${POSTGRES_PASSWORD:-webstudio123}@postgres:5432/webstudio?pgbouncer=true
+      DIRECT_URL: postgres://webstudio:${POSTGRES_PASSWORD:-webstudio123}@postgres:5432/webstudio
       POSTGREST_URL: http://postgrest:3002
-      POSTGREST_API_KEY: ${POSTGREST_API_KEY:-your-postgrest-api-key}
-      AUTH_SECRET: ${AUTH_SECRET:-your-auth-secret}
-      BUILD_ORIGIN: ${BUILD_ORIGIN:-https://your-domain.com}
+      POSTGREST_API_KEY: ${POSTGREST_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttZHBpeHpvcWlpcmJtcGRpcHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjYzMzY0MjgsImV4cCI6MTk4MTkxMjQyOH0.jjeYvTDrWP9pV7dfZr6fptualNQ3aR13kuPhvT25Sso}
+      AUTH_SECRET: ${AUTH_SECRET:-your-auth-secret-key}
+      BUILD_ORIGIN: ${BUILD_ORIGIN:-http://localhost:8080}
+      DEV_LOGIN: "true"
       FEATURES: "*"
       USER_PLAN: pro
-      # Optional: Configure S3 for asset storage
-      # S3_BUCKET: your-bucket
-      # S3_REGION: your-region
-      # S3_ACCESS_KEY_ID: your-access-key
-      # S3_SECRET_ACCESS_KEY: your-secret-key
-      # S3_ENDPOINT: your-endpoint
+      MAX_ASSETS_PER_PROJECT: 50
     ports:
       - "8097:8080"
     depends_on:
@@ -67,12 +63,10 @@ services:
       postgrest:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8097/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8097/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-
 volumes:
   postgres_data:
-
