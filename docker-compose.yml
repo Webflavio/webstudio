@@ -37,7 +37,7 @@ services:
       - webstudio-network
     ports:
       - ${PGPORT:-5432}:5432
-      - 3000:3000
+      - 3001:3000
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d webstudio"]
       interval: 10s
@@ -70,3 +70,4 @@ volumes:
 networks:
   webstudio-network:
     driver: bridge
+
