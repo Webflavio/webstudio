@@ -1,64 +1,71 @@
-version: "3.9"
-
-
-networks:
-  dokploy-network:
-    external: true
-  internal:
-    driver: bridge
-
-
-volumes:
-  node-modules:
-  pnpm-store:
-  node-cache:
-  app-cache:
-  app-build:
-
+version: "3.8"
 
 services:
-
   app:
+    init: true
+    privileged: true  # مطلوب لـ Docker-in-Docker في التطوير
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: webstudio-app
-    restart: unless-stopped
-    user: root
+
     volumes:
-      - ./:/app:cached
-      - node-modules:/app/node_modules
-      - pnpm-store:/home/node/.pnpm-store:rw
-      - node-cache:/home/node/.cache:rw
-      - app-cache:/app/.cache
-      - app-build:/app/build
+      - .:/workspaces/webstudio:cached  # ربط كود الـ repo للتطوير
+      - ../files/app-local:/home/node/.local  # حفظ تاريخ/كونفيج مستمر
+      - ../files/docker-data:/var/lib/docker  # لـ Docker-in-Docker مستمر
+
+    entrypoint: ["/usr/local/share/docker-init.sh"]
+    # يشغل postinstall.sh ثم يبقى مفتوحاً للتطوير (مثل devcontainer)
+    command: ["/bin/bash", "-c", "cd /workspaces/webstudio && ./.devcontainer/postinstall.sh && sleep infinity"]
+    # يشارك الشبكة مع db للوصول الداخلي
+    network_mode: service:db
+
+    depends_on:
+      db:
+        condition: service_healthy
+    user: node  # للأمان
     environment:
-      NODE_ENV: development
-      PORT: ${PORT:-3000}
-      DATABASE_URL: ${DATABASE_URL}
-   env_file:
-        - apps/builder/.env
-    networks:
-      - dokploy-network
-      - internal
-    command: ["sh", "docker-entrypoint.sh"]
+      - NODE_ENV=development  # وضع التطوير
+      - PGPORT=5432
+
+  db:
+    image: ghcr.io/supabase/postgres:15.1.1.55
+    # تفعيل logging الكامل للتطوير
+    command: ["postgres", "-c", "log_statement=all", "-c", "listen_addresses=*"]
+    restart: unless-stopped
+    volumes:
+      - ../files/postgres-data:/var/lib/postgresql/data  # مستمر عبر deployments
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+      POSTGRES_DB: webstudio
+
+    ports:
+      - ${PGPORT:-5432}:5432  # الوصول الخارجي للتطوير
+      - 3000:3000  # إذا كان التطبيق يستمع على 3000
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d webstudio"]
+      interval: 10s
+      timeout: 5s
+      retries: 25
 
   rest:
+    container_name: supabase-rest
     image: postgrest/postgrest:v12.2.0
-    container_name: webstudio-rest
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     environment:
-      PGRST_DB_URI: ${DATABASE_URL}
+      PGRST_DB_URI: postgresql://postgres:${POSTGRES_PASSWORD:-pass}@localhost/webstudio
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
-      PGRST_DB_ANON_ROLE: ${PGRST_DB_ANON_ROLE:-anon}
+      PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
-      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
-   env_file:
-        - apps/builder/.env
-    networks:
-      - dokploy-network
-      - internal
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}  # 1 ساعة للتطوير
+    command: "postgrest"
 
+    # يشارك الشبكة مع db
+    network_mode: service:db
 
+# لا named volumes هنا؛ استخدم ../files/ للتوافق مع Dokploy
