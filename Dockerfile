@@ -46,11 +46,11 @@ RUN chown -R webstudio:nodejs /app
 USER webstudio
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8097
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+  CMD node -e "require('http').get('http://localhost:8097/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Start the application
 CMD ["pnpm", "--filter", "@webstudio-is/builder", "start"]
