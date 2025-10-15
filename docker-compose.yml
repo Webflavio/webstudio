@@ -38,13 +38,16 @@ services:
     
     container_name: webstudio-app
     restart: unless-stopped
+    user: root  # نبدأ كـ root لإصلاح الصلاحيات ثم نتحول لـ node
     
     volumes:
       # ربط مجلد المشروع للتطوير
       - ./:/app:cached
       # الحفاظ على node_modules
       - node-modules:/app/node_modules
-      - pnpm-store:/home/node/.pnpm-store
+      # استخدام volume منفصل لـ pnpm store مع صلاحيات صحيحة
+      - pnpm-store:/home/node/.pnpm-store:rw
+      - node-cache:/home/node/.cache:rw
       - app-cache:/app/.cache
       - app-build:/app/build
     
@@ -84,10 +87,13 @@ services:
     command: >
       sh -c "
         echo 'Starting development environment...' &&
-        pnpm install &&
-        pnpm build &&
-        pnpm migrations migrate &&
-        pnpm dev --host 0.0.0.0
+        mkdir -p /home/node/.pnpm-store /home/node/.cache &&
+        chown -R node:node /home/node/.pnpm-store /home/node/.cache &&
+        su node -c 'pnpm config set store-dir /home/node/.pnpm-store' &&
+        su node -c 'pnpm install' &&
+        su node -c 'pnpm build' &&
+        su node -c 'pnpm migrations migrate' &&
+        su node -c 'pnpm dev --host 0.0.0.0'
       "
 
   # PostgREST API (اختياري)
@@ -126,6 +132,8 @@ volumes:
   node-modules:
     driver: local
   pnpm-store:
+    driver: local
+  node-cache:
     driver: local
   app-cache:
     driver: local
