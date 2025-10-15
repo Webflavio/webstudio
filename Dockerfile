@@ -8,10 +8,7 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# إنشاء مستخدم غير root
-RUN useradd -m -s /bin/bash node
-
-# تفعيل corepack وتثبيت pnpm
+# تفعيل corepack وتثبيت pnpm (كـ root)
 RUN corepack enable && \
     corepack prepare pnpm@9.14.4 --activate
 
@@ -19,20 +16,20 @@ RUN corepack enable && \
 WORKDIR /app
 
 # نسخ ملفات package.json أولاً للاستفادة من cache
-COPY package.json pnpm-lock.yaml* ./
-COPY pnpm-workspace.yaml* ./
-
-# تكوين pnpm
-RUN pnpm config set store-dir /home/node/.pnpm-store
+COPY --chown=node:node package.json pnpm-lock.yaml* ./
+COPY --chown=node:node pnpm-workspace.yaml* ./
 
 # تغيير ملكية المجلد
-RUN chown -R node:node /app /home/node
+RUN chown -R node:node /app
 
 # التبديل للمستخدم node
 USER node
 
+# تكوين pnpm
+RUN pnpm config set store-dir /home/node/.pnpm-store
+
 # تعريض المنفذ
-EXPOSE 3000
+EXPOSE 3002
 
 # الأمر الافتراضي
 CMD ["pnpm", "dev", "--host", "0.0.0.0"]
