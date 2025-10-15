@@ -1,24 +1,38 @@
-# Development Dockerfile for Webstudio
-FROM node:20-alpine
+FROM node:20-bookworm
 
-# Install pnpm and wget for healthcheck
-RUN npm install -g pnpm wget
+# تثبيت الأدوات الضرورية
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# إنشاء مستخدم غير root
+RUN useradd -m -s /bin/bash node
+
+# تفعيل corepack وتثبيت pnpm
+RUN corepack enable && \
+    corepack prepare pnpm@9.14.4 --activate
+
+# تعيين مجلد العمل
 WORKDIR /app
 
-# Copy all files at once to ensure patches are included
-COPY . .
+# نسخ ملفات package.json أولاً للاستفادة من cache
+COPY package.json pnpm-lock.yaml* ./
+COPY pnpm-workspace.yaml* ./
 
-# Install dependencies
-RUN pnpm install
+# تكوين pnpm
+RUN pnpm config set store-dir /home/node/.pnpm-store
 
-# Expose port for development
-EXPOSE 3001
+# تغيير ملكية المجلد
+RUN chown -R node:node /app /home/node
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+# التبديل للمستخدم node
+USER node
 
-# Start development server
-CMD ["pnpm", "--filter", "@webstudio-is/builder", "dev"]
+# تعريض المنفذ
+EXPOSE 3000
+
+# الأمر الافتراضي
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]
