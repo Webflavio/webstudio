@@ -18,6 +18,9 @@ RUN pnpm install --frozen-lockfile
 # نسخ باقي الكود
 COPY . .
 
+# إصلاح مسار extends في tsconfig.json لحزمة sdk-components-react (حل لفشل Vite في حل الـ alias)
+RUN sed -i 's|"extends": "@webstudio-is/tsconfig/base.json"|"extends": "../../tsconfig/base.json"|g' packages/sdk-components-react/tsconfig.json
+
 # بناء التطبيق (يحتاج devDependencies مثل esbuild)
 RUN pnpm build
 
