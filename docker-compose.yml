@@ -65,7 +65,7 @@ services:
       - "traefik.http.routers.webstudio-app-http.entrypoints=web"
       - "traefik.http.routers.webstudio-app-http.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-    command: ["sh", "/app/docker-entrypoint.sh"]
+    command: ["sh", "docker-entrypoint.sh"]
 
 
   # PostgREST API (اختياري)
@@ -102,4 +102,5 @@ volumes:
   node-cache:
   app-cache:
   app-build:
+
 
