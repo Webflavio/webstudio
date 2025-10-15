@@ -1,12 +1,11 @@
 FROM node:20-bookworm
 
-# تثبيت su-exec للتبديل الآمن بين المستخدمين
+# تثبيت الأدوات الضرورية
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     build-essential \
     postgresql-client \
-    su-exec \
     && rm -rf /var/lib/apt/lists/*
 
 # تفعيل corepack وتثبيت pnpm (كـ root)
@@ -14,13 +13,27 @@ RUN corepack enable && \
     corepack prepare pnpm@9.14.4 --activate
 
 # إنشاء وتجهيز المجلدات اللازمة
-RUN mkdir -p /home/node/.pnpm-store /home/node/.cache /workspace && \
-    chown -R node:node /home/node /workspace
+RUN mkdir -p /home/node/.pnpm-store /home/node/.cache && \
+    chown -R node:node /home/node
 
 # تعيين مجلد العمل
-WORKDIR /workspace
+WORKDIR /app
+
+# نسخ ملفات package.json أولاً للاستفادة من cache
+COPY --chown=node:node package.json pnpm-lock.yaml* ./
+COPY --chown=node:node pnpm-workspace.yaml* ./
+
+# تغيير ملكية المجلد
+RUN chown -R node:node /app
+
+# التبديل للمستخدم node
+USER node
+
+# تكوين pnpm
+RUN pnpm config set store-dir /home/node/.pnpm-store
 
 # تعريض المنفذ
 EXPOSE 3002
 
-# سيتم تعريف ENTRYPOINT و CMD في docker-compose
+# الأمر الافتراضي
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]
