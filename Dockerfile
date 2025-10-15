@@ -1,39 +1,25 @@
-FROM node:20-bookworm
+FROM mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm
 
-# تثبيت الأدوات الضرورية
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    build-essential \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+ENV PATH=/usr/local/bin:${PATH}
 
-# تفعيل corepack وتثبيت pnpm (كـ root)
-RUN corepack enable && \
-    corepack prepare pnpm@9.14.4 --activate
+# [Optional] Uncomment this section to install additional OS packages.
+# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+#     && apt-get -y install --no-install-recommends <your-package-list-here>
 
-# إنشاء وتجهيز المجلدات اللازمة
-RUN mkdir -p /home/node/.pnpm-store /home/node/.cache && \
-    chown -R node:node /home/node
+# [Optional] Uncomment if you want to install an additional version of node using nvm
+# ARG EXTRA_NODE_VERSION=10
+# RUN su node -c "source /usr/local/share/nvm/nvm.sh && nvm install ${EXTRA_NODE_VERSION}"
 
-# تعيين مجلد العمل
-WORKDIR /app
+# [Optional] Uncomment if you want to install more global node modules
+# RUN su node -c "npm install -g <your-package-list-here>"
 
-# نسخ ملفات package.json أولاً للاستفادة من cache
-COPY --chown=node:node package.json pnpm-lock.yaml* ./
-COPY --chown=node:node pnpm-workspace.yaml* ./
+# نسخ السكريبتات المطلوبة للتطوير
+COPY .devcontainer/postinstall.sh /workspaces/webstudio/.devcontainer/postinstall.sh
+RUN chmod +x /workspaces/webstudio/.devcontainer/postinstall.sh
 
-# تغيير ملكية المجلد
-RUN chown -R node:node /app
+# نسخ library-scripts إذا كانت موجودة (من devcontainer الأصلي)
+COPY library-scripts/*.sh /tmp/library-scripts/ || true
 
-# التبديل للمستخدم node
-USER node
-
-# تكوين pnpm
-RUN pnpm config set store-dir /home/node/.pnpm-store
-
-# تعريض المنفذ
-EXPOSE 3002
-
-# الأمر الافتراضي
-CMD ["pnpm", "dev", "--host", "0.0.0.0"]
+ENV DOCKER_BUILDKIT=1
+RUN apt-get update
+RUN /bin/bash /tmp/library-scripts/docker-in-docker-debian.sh || true  # لـ Docker-in-Docker
