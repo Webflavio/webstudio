@@ -70,8 +70,10 @@ services:
         echo 'Starting development environment...' &&
         mkdir -p /home/node/.pnpm-store /home/node/.cache &&
         chown -R node:node /home/node/.pnpm-store /home/node/.cache &&
-        find /app -type d -name node_modules -exec rm -rf {} + || true &&
-        find /app -type d -exec mkdir -p {}/node_modules \; || true &&
+        # حذف node_modules إذا وجدت
+        find /app -type d -name node_modules -exec rm -rf {} \; || true &&
+        # إنشاء node_modules لكل package
+        find /app -type d -exec sh -c 'mkdir -p \"$1/node_modules\"' _ {} \; &&
         chown -R node:node /app &&
         su node -c 'pnpm config set store-dir /home/node/.pnpm-store' &&
         su node -c 'pnpm install' &&
