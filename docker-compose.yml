@@ -37,7 +37,7 @@ services:
   webstudio:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     restart: always
     environment:
       NODE_ENV: development
@@ -70,3 +70,4 @@ services:
 
 volumes:
   postgres_data:
+
