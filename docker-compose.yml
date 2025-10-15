@@ -1,72 +1,135 @@
+version: "3.8"
+
+# شبكة Dokploy - يجب إضافتها للتكامل مع Traefik
+networks:
+  dokploy-network:
+    external: true
+  internal:
+    driver: bridge
+
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    restart: always
-    environment:
-      POSTGRES_DB: webstudio
-      POSTGRES_USER: webstudio
-      POSTGRES_PASSWORD: webstudio123
+  # قاعدة البيانات PostgreSQL
+  db:
+    image: ghcr.io/supabase/postgres:15.1.1.55
+    container_name: webstudio-db
+    restart: unless-stopped
+    
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - postgres-data:/var/lib/postgresql/data
+    
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+      POSTGRES_DB: ${POSTGRES_DB:-webstudio}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    
+    networks:
+      - internal
+    
+    # فحص صحة قاعدة البيانات
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U webstudio"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d webstudio"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 25
 
-  # PostgREST API
-  postgrest:
-    image: postgrest/postgrest:v12.0.2
-    restart: always
-    environment:
-      PGRST_DB_URI: postgres://webstudio:webstudio123@postgres:5432/webstudio
-      PGRST_DB_SCHEMA: public
-      PGRST_DB_ANON_ROLE: webstudio
-      PGRST_JWT_SECRET: your-super-secret-jwt-key-with-at-least-32-characters-long
-      PGRST_JWT_AUD: webstudio
-    ports:
-      - "3002:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # Webstudio Builder Application (Development)
-  webstudio:
+  # تطبيق Webstudio الرئيسي
+  app:
     build:
       context: .
       dockerfile: Dockerfile
+    
+    container_name: webstudio-app
     restart: unless-stopped
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgres://webstudio:webstudio123@postgres:5432/webstudio?pgbouncer=true
-      DIRECT_URL: postgres://webstudio:webstudio123@postgres:5432/webstudio
-      POSTGREST_URL: http://postgrest:3002
-      POSTGREST_API_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttZHBpeHpvcWlpcmJtcGRpcHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjYzMzY0MjgsImV4cCI6MTk4MTkxMjQyOH0.jjeYvTDrWP9pV7dfZr6fptualNQ3aR13kuPhvT25Sso
-      AUTH_SECRET: your-auth-secret-key
-      BUILD_ORIGIN: http://localhost:3000
-      DEV_LOGIN: "true"
-      FEATURES: "*"
-      USER_PLAN: pro
-      MAX_ASSETS_PER_PROJECT: 50
-    ports:
-      - "3001:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      postgrest:
-        condition: service_started
+    
     volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/apps/builder/node_modules
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      # ربط مجلد المشروع للتطوير
+      - ./:/app:cached
+      # الحفاظ على node_modules
+      - node-modules:/app/node_modules
+      - pnpm-store:/home/node/.pnpm-store
+      - app-cache:/app/.cache
+      - app-build:/app/build
+    
+    environment:
+      # إعدادات قاعدة البيانات
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pass}@db:5432/${POSTGRES_DB:-webstudio}
+      
+      # إعدادات Node.js
+      NODE_ENV: development
+      
+      # إعدادات المشروع
+      PORT: ${PORT:-3000}
+      
+      # يمكنك إضافة متغيرات البيئة الأخرى هنا
+      
+    depends_on:
+      db:
+        condition: service_healthy
+    
+    networks:
+      - dokploy-network
+      - internal
+    
+    # تعريضات Traefik للوصول من الخارج
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webstudio-app.rule=Host(`${APP_DOMAIN:-webstudio.localhost}`)"
+      - "traefik.http.routers.webstudio-app.entrypoints=websecure"
+      - "traefik.http.routers.webstudio-app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.webstudio-app.loadbalancer.server.port=3000"
+      # إعادة توجيه HTTP إلى HTTPS
+      - "traefik.http.routers.webstudio-app-http.rule=Host(`${APP_DOMAIN:-webstudio.localhost}`)"
+      - "traefik.http.routers.webstudio-app-http.entrypoints=web"
+      - "traefik.http.routers.webstudio-app-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    
+    command: >
+      sh -c "
+        echo 'Starting development environment...' &&
+        pnpm install &&
+        pnpm build &&
+        pnpm migrations migrate &&
+        pnpm dev --host 0.0.0.0
+      "
+
+  # PostgREST API (اختياري)
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: webstudio-rest
+    restart: unless-stopped
+    
+    environment:
+      PGRST_DB_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-pass}@db:5432/${POSTGRES_DB:-webstudio}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
+      PGRST_DB_ANON_ROLE: ${PGRST_DB_ANON_ROLE:-anon}
+      PGRST_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    
+    depends_on:
+      db:
+        condition: service_healthy
+    
+    networks:
+      - dokploy-network
+      - internal
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webstudio-rest.rule=Host(`${REST_DOMAIN:-rest.webstudio.localhost}`)"
+      - "traefik.http.routers.webstudio-rest.entrypoints=websecure"
+      - "traefik.http.routers.webstudio-rest.tls.certresolver=letsencrypt"
+      - "traefik.http.services.webstudio-rest.loadbalancer.server.port=3000"
 
 volumes:
-  postgres_data:
+  postgres-data:
+    driver: local
+  node-modules:
+    driver: local
+  pnpm-store:
+    driver: local
+  app-cache:
+    driver: local
+  app-build:
+    driver: local
