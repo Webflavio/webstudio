@@ -87,8 +87,8 @@ services:
     command: >
       sh -c "
         echo 'Starting development environment...' &&
-        mkdir -p /home/node/.pnpm-store /home/node/.cache &&
-        chown -R node:node /home/node/.pnpm-store /home/node/.cache &&
+        mkdir -p /home/node/.pnpm-store /home/node/.cache /app/node_modules &&
+        chown -R node:node /home/node/.pnpm-store /home/node/.cache /app/node_modules &&
         su node -c 'pnpm config set store-dir /home/node/.pnpm-store' &&
         su node -c 'pnpm install' &&
         su node -c 'pnpm build' &&
@@ -139,4 +139,5 @@ volumes:
     driver: local
   app-build:
     driver: local
+
 
