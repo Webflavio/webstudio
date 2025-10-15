@@ -32,6 +32,10 @@ services:
     networks:
       - dokploy-network
       - internal
+      
+ networks:
+  dokploy-network:
+    external: true
     labels:
       # Traefik HTTPS
       - "traefik.enable=true"
@@ -62,6 +66,9 @@ services:
     networks:
       - dokploy-network
       - internal
+ networks:
+  dokploy-network:
+    external: true
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webstudio-rest.rule=Host(`${REST_DOMAIN:-rest.webstudio.localhost}`)"
@@ -76,5 +83,6 @@ volumes:
   node-cache:
   app-cache:
   app-build:
+
 
 
