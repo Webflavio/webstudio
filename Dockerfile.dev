@@ -9,6 +9,9 @@ RUN npm install -g pnpm@9.14.4
 # نسخ ملفات التبعيات للاستفادة من الـ cache في Docker
 COPY package.json pnpm-lock.yaml ./
 
+# نسخ مجلد patches إذا كان موجودًا (حل لمشكلة ENOENT مع @stitches/react)
+COPY patches ./patches
+
 # تثبيت التبعيات للـ production فقط (أسرع وأصغر)
 RUN pnpm install --frozen-lockfile --prod
 
