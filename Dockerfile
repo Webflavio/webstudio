@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y \
 RUN corepack enable && \
     corepack prepare pnpm@9.14.4 --activate
 
+# إنشاء وتجهيز المجلدات اللازمة
+RUN mkdir -p /home/node/.pnpm-store /home/node/.cache && \
+    chown -R node:node /home/node
+
 # تعيين مجلد العمل
 WORKDIR /app
 
