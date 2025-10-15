@@ -55,16 +55,3 @@ storybook-static
 codemod
 fixtures
 https
-patches/*.patch
-!patches/@stitches__react@1.3.1-1.patch
-!patches/@remix-run__dev.patch
-!patches/@radix-ui__react-scroll-area@1.0.5.patch
-!patches/@types__css-tree@2.3.1.patch
-!patches/css-tree@2.3.1.patch
-
-# Keep only essential patches
-patches/@stitches__react@1.3.1-1.patch
-patches/@remix-run__dev.patch
-patches/@radix-ui__react-scroll-area@1.0.5.patch
-patches/@types__css-tree@2.3.1.patch
-patches/css-tree@2.3.1.patch
