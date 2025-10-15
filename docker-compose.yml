@@ -65,22 +65,8 @@ services:
       - "traefik.http.routers.webstudio-app-http.entrypoints=web"
       - "traefik.http.routers.webstudio-app-http.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-    command: >
-      sh -c "
-        echo 'Starting development environment...' &&
-        mkdir -p /home/node/.pnpm-store /home/node/.cache &&
-        chown -R node:node /home/node/.pnpm-store /home/node/.cache &&
-        # حذف node_modules إذا وجدت
-        find /app -type d -name node_modules -exec rm -rf {} \; || true &&
-        # إنشاء node_modules لكل package
-        find /app -type d -exec sh -c 'mkdir -p \"$1/node_modules\"' _ {} \; &&
-        chown -R node:node /app &&
-        su node -c 'pnpm config set store-dir /home/node/.pnpm-store' &&
-        su node -c 'pnpm install' &&
-        su node -c 'pnpm build' &&
-        su node -c 'pnpm migrations migrate' &&
-        su node -c 'pnpm dev --host 0.0.0.0'
-      "
+    command: ["sh", "/app/docker-entrypoint.sh"]
+
 
   # PostgREST API (اختياري)
   rest:
@@ -116,3 +102,4 @@ volumes:
   node-cache:
   app-cache:
   app-build:
+
