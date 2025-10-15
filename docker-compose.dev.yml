@@ -15,38 +15,38 @@ volumes:
   postgres-data:
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: webstudio-app
-    init: true  # لدعم السكريبتات والـ signals
-    restart: unless-stopped
-    user: root
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536  # زيادة حد الملفات المفتوحة لحل EMFILE في Vite dev
-    volumes:
-      - ./:/app:cached
-      - node-modules:/app/node_modules
-      - pnpm-store:/home/node/.pnpm-store:rw
-      - node-cache:/home/node/.cache:rw
-      - app-cache:/app/.cache
-      - app-build:/app/build
-    environment:
-      NODE_ENV: development
-      PORT: ${PORT:-3000}
-      DATABASE_URL: ${DATABASE_URL}
-    env_file:
-      - apps/builder/.env
-    networks:
-      - dokploy-network
-      - internal
-    command: ["sh", "-c", "pnpm migrations migrate && pnpm dev --host 0.0.0.0"] 
-    depends_on:
-      db:
-        condition: service_healthy
+app:
+  build:
+    context: .
+    dockerfile: Dockerfile
+  container_name: webstudio-app
+  init: true  # لدعم السكريبتات والـ signals
+  restart: unless-stopped
+  user: root
+  ulimits:
+    nofile:
+      soft: 100000
+      hard: 100000  # زيادة حد الملفات المفتوحة لحل EMFILE نهائيًا
+  volumes:
+    - ./:/app:cached
+    - node-modules:/app/node_modules
+    - pnpm-store:/home/node/.pnpm-store:rw
+    - node-cache:/home/node/.cache:rw
+    - app-cache:/app/.cache
+    - app-build:/app/build
+  environment:
+    NODE_ENV: development
+    PORT: ${PORT:-3000}
+    DATABASE_URL: ${DATABASE_URL}
+  env_file:
+    - apps/builder/.env
+  networks:
+    - dokploy-network
+    - internal
+  entrypoint: ["sh", "-c", "pnpm migrations migrate && sh docker-entrypoint.sh"]  # migrations أولاً، ثم الـ entrypoint الجديد
+  depends_on:
+    db:
+      condition: service_healthy
 
   db:
     image: ghcr.io/supabase/postgres:15.1.1.55
