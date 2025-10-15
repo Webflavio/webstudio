@@ -2,7 +2,7 @@
 FROM node:20-alpine
 
 # Install pnpm and wget for healthcheck
-RUN npm install -g pnpm@9.14.4 wget
+RUN npm install -g pnpm wget
 
 # Set working directory
 WORKDIR /app
