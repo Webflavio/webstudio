@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: webstudio
       POSTGRES_USER: webstudio
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-webstudio123}
+      POSTGRES_PASSWORD: webstudio123
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -24,10 +24,10 @@ services:
     image: postgrest/postgrest:v12.0.2
     restart: always
     environment:
-      PGRST_DB_URI: postgres://webstudio:${POSTGRES_PASSWORD:-webstudio123}@postgres:5432/webstudio
+      PGRST_DB_URI: postgres://webstudio:webstudio123@postgres:5432/webstudio
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: webstudio
-      PGRST_JWT_SECRET: ${PGRST_JWT_SECRET:-your-super-secret-jwt-key-with-at-least-32-characters-long}
+      PGRST_JWT_SECRET: your-super-secret-jwt-key-with-at-least-32-characters-long
       PGRST_JWT_AUD: webstudio
     ports:
       - "3002:3000"
@@ -35,38 +35,35 @@ services:
       postgres:
         condition: service_healthy
 
-  # Webstudio Builder Application
+  # Webstudio Builder Application (Development)
   webstudio:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
     restart: always
     environment:
-      NODE_ENV: production
-      DATABASE_URL: postgres://webstudio:${POSTGRES_PASSWORD:-webstudio123}@postgres:5432/webstudio?pgbouncer=true
-      DIRECT_URL: postgres://webstudio:${POSTGRES_PASSWORD:-webstudio123}@postgres:5432/webstudio
+      NODE_ENV: development
+      DATABASE_URL: postgres://webstudio:webstudio123@postgres:5432/webstudio?pgbouncer=true
+      DIRECT_URL: postgres://webstudio:webstudio123@postgres:5432/webstudio
       POSTGREST_URL: http://postgrest:3002
-      POSTGREST_API_KEY: ${POSTGREST_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttZHBpeHpvcWlpcmJtcGRpcHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjYzMzY0MjgsImV4cCI6MTk4MTkxMjQyOH0.jjeYvTDrWP9pV7dfZr6fptualNQ3aR13kuPhvT25Sso}
-      AUTH_SECRET: ${AUTH_SECRET:-your-auth-secret-key}
-      BUILD_ORIGIN: ${BUILD_ORIGIN:-http://localhost:8080}
+      POSTGREST_API_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttZHBpeHpvcWlpcmJtcGRpcHB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NjYzMzY0MjgsImV4cCI6MTk4MTkxMjQyOH0.jjeYvTDrWP9pV7dfZr6fptualNQ3aR13kuPhvT25Sso
+      AUTH_SECRET: your-auth-secret-key
+      BUILD_ORIGIN: http://localhost:3000
       DEV_LOGIN: "true"
       FEATURES: "*"
       USER_PLAN: pro
       MAX_ASSETS_PER_PROJECT: 50
     ports:
-      - "8097:8080"
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
       postgrest:
         condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8097/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/builder/node_modules
 
 volumes:
   postgres_data:
