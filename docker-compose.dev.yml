@@ -20,8 +20,13 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: webstudio-app
+    init: true  # لدعم السكريبتات والـ signals
     restart: unless-stopped
     user: root
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536  # زيادة حد الملفات المفتوحة لحل EMFILE في Vite dev
     volumes:
       - ./:/app:cached
       - node-modules:/app/node_modules
@@ -38,7 +43,7 @@ services:
     networks:
       - dokploy-network
       - internal
-    command: ["sh", "docker-entrypoint.sh"]
+    command: ["sh", "-c", "pnpm migrations migrate && pnpm dev --host 0.0.0.0"] 
     depends_on:
       db:
         condition: service_healthy
@@ -72,9 +77,9 @@ services:
       PGRST_DB_URI: ${DATABASE_URL}
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
       PGRST_DB_ANON_ROLE: ${PGRST_DB_ANON_ROLE:-anon}
-      PGRST_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
+      PGRST_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-jwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecretjwtsecret}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
     env_file:
       - apps/builder/.env
