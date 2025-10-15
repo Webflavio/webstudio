@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "pnpm dev",
     "build": "pnpm -r --filter='!./fixtures/*' build",
     "dts": "pnpm -r dts",
     "dev": "pnpm --filter='@webstudio-is/builder' dev",
